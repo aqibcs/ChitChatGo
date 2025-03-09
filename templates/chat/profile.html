@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% block title %}Profile - ChitChatGo{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">Your Profile</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 text-center mb-4">
+                            <img src="{{ user.profile.profile_picture.url }}" alt="{{ user.username }}'s profile picture" class="img-fluid rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                            <h4>{{ user.get_full_name }}</h4>
+                            <p class="text-muted">@{{ user.username }}</p>
+                        </div>
+                        <div class="col-md-8">
+                            <form method="post" enctype="multipart/form-data" novalidate>
+                                {% csrf_token %}
+
+                                <h5 class="mb-3">Account Information</h5>
+
+                                <div class="mb-3">
+                                    <label for="{{ u_form.username.id_for_label }}" class="form-label">Username</label>
+                                    <input type="text" name="{{ u_form.username.name }}" id="{{ u_form.username.id_for_label }}" class="form-control {% if u_form.username.errors %}is-invalid{% endif %}" value="{{ u_form.username.value }}">
+                                    {% if u_form.username.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in u_form.username.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ u_form.email.id_for_label }}" class="form-label">Email</label>
+                                    <input type="email" name="{{ u_form.email.name }}" id="{{ u_form.email.id_for_label }}" class="form-control {% if u_form.email.errors %}is-invalid{% endif %}" value="{{ u_form.email.value }}">
+                                    {% if u_form.email.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in u_form.email.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ u_form.first_name.id_for_label }}" class="form-label">First Name</label>
+                                        <input type="text" name="{{ u_form.first_name.name }}" id="{{ u_form.first_name.id_for_label }}" class="form-control {% if u_form.first_name.errors %}is-invalid{% endif %}" value="{{ u_form.first_name.value }}">
+                                        {% if u_form.first_name.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in u_form.first_name.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ u_form.last_name.id_for_label }}" class="form-label">Last Name</label>
+                                        <input type="text" name="{{ u_form.last_name.name }}" id="{{ u_form.last_name.id_for_label }}" class="form-control {% if u_form.last_name.errors %}is-invalid{% endif %}" value="{{ u_form.last_name.value }}">
+                                        {% if u_form.last_name.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in u_form.last_name.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <h5 class="mb-3 mt-4">Profile Information</h5>
+
+                                <div class="mb-3">
+                                    <label for="{{ p_form.profile_picture.id_for_label }}" class="form-label">Profile Picture</label>
+                                    <input type="file" name="{{ p_form.profile_picture.name }}" id="{{ p_form.profile_picture.id_for_label }}" class="form-control {% if p_form.profile_picture.errors %}is-invalid{% endif %}">
+                                    {% if p_form.profile_picture.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in p_form.profile_picture.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ p_form.bio.id_for_label }}" class="form-label">Bio</label>
+                                    <textarea name="{{ p_form.bio.name }}" id="{{ p_form.bio.id_for_label }}" class="form-control {% if p_form.bio.errors %}is-invalid{% endif %}" rows="3">{{ p_form.bio.value }}</textarea>
+                                    {% if p_form.bio.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in p_form.bio.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary">Update Profile</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
