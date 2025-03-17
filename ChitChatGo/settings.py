@@ -29,8 +29,7 @@ SECRET_KEY = 'django-insecure-t&ubw*wna=q6pq7(6366o%bl=o%z@4tui$@uma7ib_j-)p46$f
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 # Application definition
 
@@ -42,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'chat',
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -73,7 +73,15 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'ChitChatGo.wsgi.application'
+ASGI_APPLICATION = 'ChitChatGo.asgi.application'
 
+
+# Channel layers for WebSockets
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
