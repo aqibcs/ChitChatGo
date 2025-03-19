@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block title %}Home - ChitChatGo{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Friends</h5>
+                <a href="{% url 'friend_list' %}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-user-friends"></i>
+                </a>
+            </div>
+            <div class="card-body p-0">
+                {% if friends %}
+                    <div class="list-group list-group-flush">
+                        {% for friend in friends %}
+                            <a href="{% url 'direct_chat' friend.id %}" class="list-group-item list-group-item-action">
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ friend.profile.profile_picture.url }}" alt="{{ friend.username }}" class="profile-picture" style="width: 40px; height: 40px;">
+                                    <div class="ms-3">
+                                        <h6 class="mb-0">{{ friend.get_full_name }}</h6>
+                                        <div class="friend-status" data-user-id="{{ friend.id }}">
+                                            <span class="offline-indicator"></span>
+                                            <small class="text-muted">Offline</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <p class="mb-2">No friends yet</p>
+                        <a href="{% url 'user_search' %}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-user-plus me-1"></i> Find Friends
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Group Chats</h5>
+                <a href="{% url 'create_group' %}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-plus"></i>
+                </a>
+            </div>
+            <div class="card-body p-0">
+                {% if groups %}
+                    <div class="list-group list-group-flush">
+                        {% for group in groups %}
+                            <a href="{% url 'group_chat' group.id %}" class="list-group-item list-group-item-action">
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ group.group_picture.url }}" alt="{{ group.name }}" class="profile-picture" style="width: 40px; height: 40px;">
+                                    <div class="ms-3">
+                                        <h6 class="mb-0">{{ group.name }}</h6>
+                                        <small class="text-muted">{{ group.members.count }} members</small>
+                                    </div>
+                                </div>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <p class="mb-2">No group chats yet</p>
+                        <a href="{% url 'create_group' %}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-users me-1"></i> Create Group
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Welcome to ChitChatGo</h5>
+            </div>
+            <div class="card-body">
+                <p>Hello, <strong>{{ user.get_full_name }}</strong>!</p>
+                <p>Start chatting with your friends or create a group chat.</p>
+                
+                <div class="d-grid gap-2 mt-4">
+                    <a href="{% url 'user_search' %}" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i> Find Friends
+                    </a>
+                    <a href="{% url 'create_group' %}" class="btn btn-success">
+                        <i class="fas fa-users me-1"></i> Create Group Chat
+                    </a>
+                    <a href="{% url 'notifications' %}" class="btn btn-info position-relative">
+                        <i class="fas fa-bell me-1"></i> Notifications
+                        {% if unread_count > 0 %}
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                {{ unread_count }}
+                            </span>
+                        {% endif %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check online status for each friend
+        const statusElements = document.querySelectorAll('.friend-status');
+        
+        statusElements.forEach(element => {
+            const userId = element.dataset.userId;
+            
+            function checkStatus() {
+                fetch(`/ajax/online-status/${userId}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const indicator = element.querySelector('span');
+                        const statusText = element.querySelector('small');
+                        
+                        if (data.is_online) {
+                            indicator.className = 'online-indicator';
+                            statusText.textContent = 'Online';
+                        } else {
+                            indicator.className = 'offline-indicator';
+                            statusText.textContent = 'Offline';
+                        }
+                    });
+            }
+            
+            // Check immediately and then every 30 seconds
+            checkStatus();
+            setInterval(checkStatus, 30000);
+        });
+    });
+</script>
+{% endblock %}

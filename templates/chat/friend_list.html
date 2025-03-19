@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block title %}Friends - ChitChatGo{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">Your Friends</h4>
+                <a href="{% url 'user_search' %}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-user-plus me-1"></i> Find Friends
+                </a>
+            </div>
+            <div class="card-body">
+                {% if friends %}
+                    <div class="list-group">
+                        {% for friend in friends %}
+                            <div class="friend-list-item d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ friend.profile.profile_picture.url }}" alt="{{ friend.username }}" class="profile-picture">
+                                    <div>
+                                        <h5 class="mb-0">{{ friend.get_full_name }}</h5>
+                                        <p class="mb-0 text-muted">@{{ friend.username }}</p>
+                                        <div class="friend-status" data-user-id="{{ friend.id }}">
+                                            <span class="offline-indicator"></span>
+                                            <small class="text-muted">Offline</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <a href="{% url 'direct_chat' friend.id %}" class="btn btn-sm btn-primary me-2">
+                                        <i class="fas fa-comment me-1"></i> Chat
+                                    </a>
+                                    <a href="{% url 'remove_friend' friend.id %}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to remove this friend?')">
+                                        <i class="fas fa-user-minus"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-user-friends fa-3x mb-3 text-muted"></i>
+                        <p class="mb-0">You don't have any friends yet.</p>
+                        <p>Search for users to add them as friends.</p>
+                        <a href="{% url 'user_search' %}" class="btn btn-primary">
+                            <i class="fas fa-search me-1"></i> Find Friends
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Friend Requests</h4>
+            </div>
+            <div class="card-body">
+                {% if pending_requests %}
+                    <div class="list-group">
+                        {% for request in pending_requests %}
+                            <div class="list-group-item">
+                                <div class="d-flex align-items-center mb-2">
+                                    <img src="{{ request.sender.profile.profile_picture.url }}" alt="{{ request.sender.username }}" class="profile-picture" style="width: 40px; height: 40px;">
+                                    <div>
+                                        <h6 class="mb-0">{{ request.sender.get_full_name }}</h6>
+                                        <small class="text-muted">@{{ request.sender.username }}</small>
+                                    </div>
+                                </div>
+                                <div class="d-flex">
+                                    <a href="{% url 'accept_friend_request' request.id %}" class="btn btn-sm btn-success me-2">
+                                        <i class="fas fa-check me-1"></i> Accept
+                                    </a>
+                                    <a href="{% url 'reject_friend_request' request.id %}" class="btn btn-sm btn-danger">
+                                        <i class="fas fa-times me-1"></i> Reject
+                                    </a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-center py-3 mb-0">No pending friend requests.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check online status for each friend
+        const statusElements = document.querySelectorAll('.friend-status');
+        
+        statusElements.forEach(element => {
+            const userId = element.dataset.userId;
+            
+            function checkStatus() {
+                fetch(`/ajax/online-status/${userId}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const indicator = element.querySelector('span');
+                        const statusText = element.querySelector('small');
+                        
+                        if (data.is_online) {
+                            indicator.className = 'online-indicator';
+                            statusText.textContent = 'Online';
+                        } else {
+                            indicator.className = 'offline-indicator';
+                            if (data.last_seen) {
+                                const lastSeen = new Date(data.last_seen);
+                                const now = new Date();
+                                const diffMinutes = Math.floor((now - lastSeen) / (1000 * 60));
+                                
+                                if (diffMinutes < 60) {
+                                    statusText.textContent = `Last seen ${diffMinutes} min ago`;
+                                } else if (diffMinutes < 1440) {
+                                    const hours = Math.floor(diffMinutes / 60);
+                                    statusText.textContent = `Last seen ${hours} hour${hours > 1 ? 's' : ''} ago`;
+                                } else {
+                                    const days = Math.floor(diffMinutes / 1440);
+                                    statusText.textContent = `Last seen ${days} day${days > 1 ? 's' : ''} ago`;
+                                }
+                            } else {
+                                statusText.textContent = 'Offline';
+                            }
+                        }
+                    });
+            }
+            
+            // Check immediately and then every 30 seconds
+            checkStatus();
+            setInterval(checkStatus, 30000);
+        });
+    });
+</script>
+{% endblock %}

@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
-from .models import Profile
+from .models import Profile, ChatGroup, Message
 
 
 class UserRegistrationForm(UserCreationForm):
@@ -11,20 +11,16 @@ class UserRegistrationForm(UserCreationForm):
 
     class Meta:
         model = User
-        fields = ['username', 'first_name', 'last_name', 'email', 'password1', 'password2']
-
-    def clean_username(self):
-        username = self.cleaned_data['username']
-        if User.objects.filter(username=username).exists():
-            raise forms.ValidationError('This username is already taken')
-        return username
+        fields = [
+            'username', 'email', 'first_name', 'last_name', 'password1',
+            'password2'
+        ]
 
     def clean_email(self):
-        email = self.cleaned_data['email']
+        email = self.cleaned_data.get('email')
         if User.objects.filter(email=email).exists():
-            raise forms.ValidationError('This email is already taken')
+            raise forms.ValidationError("This email is already in use.")
         return email
-
 
 
 class UserLoginForm(forms.Form):
@@ -33,12 +29,35 @@ class UserLoginForm(forms.Form):
 
 
 class ProfileUpdateForm(forms.ModelForm):
+
     class Meta:
         model = Profile
         fields = ['profile_picture', 'bio']
 
 
 class UserUpdateForm(forms.ModelForm):
+
     class Meta:
         model = User
-        fields = ['username', 'first_name', 'last_name', 'email']
+        fields = ['username', 'email', 'first_name', 'last_name']
+
+
+class ChatGroupForm(forms.ModelForm):
+
+    class Meta:
+        model = ChatGroup
+        fields = ['name', 'description', 'group_picture']
+
+
+class MessageForm(forms.ModelForm):
+
+    class Meta:
+        model = Message
+        fields = ['content', 'attachment']
+        widgets = {
+            'content':
+            forms.Textarea(attrs={
+                'rows': 3,
+                'placeholder': 'Type your message here...'
+            }),
+        }

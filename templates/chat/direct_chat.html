@@ -1,0 +1,350 @@
+{% extends 'base.html' %}
+{% load custom_filters %} 
+
+{% block title %}Chat with {{ friend.username }} - ChitChatGo{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <div class="d-flex align-items-center">
+            <img src="{{ friend.profile.profile_picture.url }}" alt="{{ friend.username }}" class="profile-picture" style="width: 40px; height: 40px;">
+            <div class="ms-3">
+                <h5 class="mb-0">{{ friend.get_full_name }}</h5>
+                <div class="friend-status" data-user-id="{{ friend.id }}">
+                    <span class="offline-indicator bg-light"></span>
+                    <small>Offline</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="chat-container" id="chat-container">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="message {% if message.sender == request.user %}message-sent{% else %}message-received{% endif %}">
+                        {{ message.content }}
+                            {% if message.attachment %}
+                                <div class="mt-2">
+                                    {% if message.attachment.url|endswith:'.jpg,.jpeg,.png,.gif' %}
+                                        <img src="{{ message.attachment.url }}" alt="Attachment" class="attachment-preview">
+                                    {% else %}
+                                        <a href="{{ message.attachment.url }}" target="_blank" class="btn btn-sm btn-light">
+                                            <i class="fas fa-file me-1"></i> Download Attachment
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        <div class="message-time">
+                            {{ message.timestamp|date:"M d, Y g:i A" }}
+                            {% if message.sender == request.user and message.is_read %}
+                                <i class="fas fa-check-double ms-1 text-primary"></i>
+                            {% elif message.sender == request.user %}
+                                <i class="fas fa-check ms-1"></i>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-comments fa-3x mb-3 text-muted"></i>
+                    <p>No messages yet. Start the conversation!</p>
+                </div>
+            {% endif %}
+            <div id="typing-indicator" class="typing-indicator" style="display: none;"></div>
+        </div>
+        <div class="p-3 border-top">
+            <form method="post" enctype="multipart/form-data" id="message-form">
+                {% csrf_token %}
+                <div class="mb-2">
+                    <textarea name="{{ form.content.name }}" id="{{ form.content.id_for_label }}" class="form-control" rows="2" placeholder="Type your message here..."></textarea>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="input-group" style="max-width: 200px;">
+                        <input type="file" name="{{ form.attachment.name }}" id="{{ form.attachment.id_for_label }}" class="form-control form-control-sm">
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane me-1"></i> Send
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const chatContainer = document.getElementById('chat-container');
+        const messageForm = document.getElementById('message-form');
+        const messageInput = document.getElementById('{{ form.content.id_for_label }}');
+        const fileInput = document.getElementById('{{ form.attachment.id_for_label }}');
+        const typingIndicator = document.getElementById('typing-indicator');
+        const friendId = '{{ friend.id }}';
+        const userId = '{{ request.user.id }}';
+        
+        // Scroll to bottom of chat
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        
+        // WebSocket connection
+        const chatSocket = new WebSocket(
+            'ws://' + window.location.host + '/ws/chat/direct/' + friendId + '/'
+        );
+        
+        chatSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            
+            if (data.type === 'message') {
+                // Create message element
+                const messageDiv = document.createElement('div');
+                messageDiv.className = data.sender_id == userId ? 'message message-sent' : 'message message-received';
+                
+                // Message content
+                messageDiv.textContent = data.message;
+                
+                // Add attachment if any
+                if (data.attachment_url) {
+                    const attachmentDiv = document.createElement('div');
+                    attachmentDiv.className = 'mt-2';
+                    
+                    const fileExt = data.attachment_url.split('.').pop().toLowerCase();
+                    if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExt)) {
+                        const img = document.createElement('img');
+                        img.src = data.attachment_url;
+                        img.alt = 'Attachment';
+                        img.className = 'attachment-preview';
+                        attachmentDiv.appendChild(img);
+                    } else {
+                        const link = document.createElement('a');
+                        link.href = data.attachment_url;
+                        link.target = '_blank';
+                        link.className = 'btn btn-sm btn-light';
+                        link.innerHTML = '<i class="fas fa-file me-1"></i> Download Attachment';
+                        attachmentDiv.appendChild(link);
+                    }
+                    
+                    messageDiv.appendChild(attachmentDiv);
+                }
+                
+                // Message timestamp
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'message-time';
+                
+                const date = new Date(data.timestamp);
+                const formattedDate = date.toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: 'numeric',
+                    hour12: true
+                });
+                
+                timeDiv.textContent = formattedDate;
+                
+                // Add read receipt icon if sender is current user
+                if (data.sender_id == userId) {
+                    const icon = document.createElement('i');
+                    icon.className = 'fas fa-check ms-1';
+                    timeDiv.appendChild(icon);
+                }
+                
+                messageDiv.appendChild(timeDiv);
+                
+                // Hide typing indicator
+                typingIndicator.style.display = 'none';
+                
+                // Add message to chat
+                chatContainer.appendChild(messageDiv);
+                
+                // Scroll to bottom
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            } else if (data.type === 'typing') {
+                if (data.user_id != userId) {
+                    if (data.is_typing) {
+                        typingIndicator.textContent = `${data.username} is typing...`;
+                        typingIndicator.style.display = 'block';
+                    } else {
+                        typingIndicator.style.display = 'none';
+                    }
+                }
+            }
+        };
+        
+        chatSocket.onclose = function(e) {
+            console.error('Chat socket closed unexpectedly');
+        };
+        
+        // Send message on form submit
+        messageForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const messageContent = messageInput.value.trim();
+            const hasFile = fileInput.files.length > 0;
+            
+            // If there's a message, send it via WebSocket
+            if (messageContent) {
+                chatSocket.send(JSON.stringify({
+                    'type': 'message',
+                    'message': messageContent
+                }));
+                
+                messageInput.value = '';
+                
+                // Send typing stopped
+                chatSocket.send(JSON.stringify({
+                    'type': 'typing',
+                    'is_typing': false
+                }));
+            }
+            
+            // If there's a file, submit the form via AJAX
+            if (hasFile) {
+                const formData = new FormData(messageForm);
+                
+                // If we're only sending a file with no message, add a placeholder message
+                if (!messageContent && hasFile) {
+                    formData.append('content', 'Sent an attachment');
+                }
+                
+                fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Clear the file input
+                    fileInput.value = '';
+                    
+                    // If there's an attachment, add it to the chat
+                    if (data.attachment_url) {
+                        // Create a new message element for the attachment
+                        const messageDiv = document.createElement('div');
+                        messageDiv.className = 'message message-sent';
+                        
+                        // Message content (if no text was sent, use a placeholder)
+                        if (!messageContent) {
+                            messageDiv.textContent = 'Sent an attachment';
+                        }
+                        
+                        // Add the attachment
+                        const attachmentDiv = document.createElement('div');
+                        attachmentDiv.className = 'mt-2';
+                        
+                        const fileExt = data.attachment_url.split('.').pop().toLowerCase();
+                        if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExt)) {
+                            const img = document.createElement('img');
+                            img.src = data.attachment_url;
+                            img.alt = 'Attachment';
+                            img.className = 'attachment-preview';
+                            attachmentDiv.appendChild(img);
+                        } else {
+                            const link = document.createElement('a');
+                            link.href = data.attachment_url;
+                            link.target = '_blank';
+                            link.className = 'btn btn-sm btn-light';
+                            link.innerHTML = '<i class="fas fa-file me-1"></i> Download Attachment';
+                            attachmentDiv.appendChild(link);
+                        }
+                        
+                        messageDiv.appendChild(attachmentDiv);
+                        
+                        // Add timestamp
+                        const timeDiv = document.createElement('div');
+                        timeDiv.className = 'message-time';
+                        
+                        const now = new Date();
+                        const formattedDate = now.toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: 'numeric',
+                            minute: 'numeric',
+                            hour12: true
+                        });
+                        
+                        timeDiv.textContent = formattedDate;
+                        
+                        // Add read receipt icon
+                        const icon = document.createElement('i');
+                        icon.className = 'fas fa-check ms-1';
+                        timeDiv.appendChild(icon);
+                        
+                        messageDiv.appendChild(timeDiv);
+                        
+                        // Add message to chat
+                        chatContainer.appendChild(messageDiv);
+                        
+                        // Scroll to bottom
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error uploading file:', error);
+                });
+            }
+        });
+        
+        // Send typing status
+        let typingTimeout;
+        messageInput.addEventListener('input', function() {
+            chatSocket.send(JSON.stringify({
+                'type': 'typing',
+                'is_typing': true
+            }));
+            
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(function() {
+                chatSocket.send(JSON.stringify({
+                    'type': 'typing',
+                    'is_typing': false
+                }));
+            }, 3000);
+        });
+        
+        // Check online status
+        const statusElement = document.querySelector('.friend-status');
+        
+        function checkStatus() {
+            fetch(`/ajax/online-status/${friendId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    const indicator = statusElement.querySelector('span');
+                    const statusText = statusElement.querySelector('small');
+                    
+                    if (data.is_online) {
+                        indicator.className = 'online-indicator bg-light';
+                        statusText.textContent = 'Online';
+                    } else {
+                        indicator.className = 'offline-indicator bg-light';
+                        if (data.last_seen) {
+                            const lastSeen = new Date(data.last_seen);
+                            const now = new Date();
+                            const diffMinutes = Math.floor((now - lastSeen) / (1000 * 60));
+                            
+                            if (diffMinutes < 60) {
+                                statusText.textContent = `Last seen ${diffMinutes} min ago`;
+                            } else if (diffMinutes < 1440) {
+                                const hours = Math.floor(diffMinutes / 60);
+                                statusText.textContent = `Last seen ${hours} hour${hours > 1 ? 's' : ''} ago`;
+                            } else {
+                                const days = Math.floor(diffMinutes / 1440);
+                                statusText.textContent = `Last seen ${days} day${days > 1 ? 's' : ''} ago`;
+                            }
+                        } else {
+                            statusText.textContent = 'Offline';
+                        }
+                    }
+                });
+        }
+        
+        // Check immediately and then every 30 seconds
+        checkStatus();
+        setInterval(checkStatus, 30000);
+    });
+</script>
+{% endblock %}
+
